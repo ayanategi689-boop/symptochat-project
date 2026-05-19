@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SymptoChat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css"></head>
+<body>
+    <div id="chat-container">
+        <h1>SymptoChat</h1>
+        <div id="chat-window">
+            <div id="messages"></div>
+        </div>
+        <div id="input-area">
+            <input type="text" id="user-input" placeholder="Type your symptom..." autocomplete="off">
+            <button id="send-btn">Send</button>
+        </div>
+    </div>
+
+    <script>
+    const sendBtn = document.getElementById('send-btn'); // The button the user clicks to send a message
+    const inputField = document.getElementById('user-input'); // Where the user types their message
+    const messagesDiv = document.getElementById('messages'); // The container that will show all the chat messages
+
+    // Show the welcome message when the page loads
+    window.onload = () => {
+        addMessage("<strong>Bot:</strong> Welcome to SymptoChat! I'm a health advice chatbot. I can give general tips based on common symptoms, but I’m not a doctor. Always check with a healthcare professional for proper medical advice.", 'bot');
+    };
+    
+    // This function creates the chat messages and adds it to the chat screen
+    function addMessage(text, sender) {
+        const msgDiv = document.createElement('div');
+        msgDiv.classList.add('message', sender);
+        
+        const formattedText = text.replace(/\n/g, '<br>'); // Replaces newlines with <br> so line breaks show in HTML
+        msgDiv.innerHTML = formattedText; // Sets the message content
+        
+        messagesDiv.appendChild(msgDiv); // Adds the message to the chat screen
+        messagesDiv.scrollTop = messagesDiv.scrollHeight; // Scrolls the chat to the bottom automatically
+        return msgDiv; 
+    }
+
+    // This function is to send user the message
+    async function sendMessage() { // This function will deal with waiting
+        const message = inputField.value.trim();
+        if (!message) return;
+
+        addMessage("<strong>You:</strong> " + message, 'user'); // Shows the user's message in the chat
+        inputField.value = '';
+        
+        // Disables input and button so the user doesn’t spam messages while waiting
+        inputField.disabled = true;
+        sendBtn.disabled = true;
+        const loadingMsg = addMessage("<strong>Bot:</strong> Thinking...", 'bot'); // Shows a temporary “Bot is thinking” message while the user waits for a reply
+
+        // Sends the message from the website to Flask backend
+        try {
+            const res = await fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }, // Sending data in JSON format
+                body: JSON.stringify({ message }) // The actual message
+            });
+
+            const data = await res.json(); // Waits for Flask’s JSON response
+            loadingMsg.innerHTML = "<strong>Bot:</strong> " + data.reply; // Replaces "Thinking" to the actual message
+        
+        // Runs when an error occurs like an network issue 
+        } catch (err) {
+            loadingMsg.innerHTML = "<strong>Bot:</strong> Oops! Something went wrong.";
+            console.error(err);
+        
+        // Ensures the user can continue typing even after an error
+        } finally {  
+            inputField.disabled = false;
+            sendBtn.disabled = false;
+            inputField.focus();
+        }
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    // When the send button is clicked, run the sendMessage() function
+    
+    inputField.addEventListener('keypress', (e) => {
+        // Check if the key pressed is Enter
+        if (e.key === 'Enter') sendMessage();
+        // If Enter is pressed, run sendMessage() to send the message
+
+    });
+</script>
+</body>
+</html>
+
